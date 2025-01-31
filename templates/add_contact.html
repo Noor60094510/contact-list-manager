@@ -3,6 +3,7 @@
 {% block content %}
 <h2>Add New Contact</h2>
 <form method="POST">
+    {{ form.hidden_tag() }}
     {{ form.csrf_token }}
     <div class="mb-3">
         {{ form.name.label(class="form-label") }}
@@ -46,4 +47,4 @@
     
     {{ form.submit(class="btn btn-primary") }}
 </form>
-{% endblock %} 
+{% endblock %}

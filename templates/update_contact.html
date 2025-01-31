@@ -3,6 +3,7 @@
 {% block content %}
 <h2>Update Contact</h2>
 <form method="POST">
+    {{ form.hidden_tag() }}
     {{ form.csrf_token }}
     <div class="mb-3">
         {{ form.name.label(class="form-label") }}
@@ -47,4 +48,6 @@
     {{ form.submit(class="btn btn-primary") }}
     <a href="{{ url_for('list_contacts') }}" class="btn btn-secondary">Cancel</a>
 </form>
+{% endblock %}
+
 {% endblock %} 
