@@ -29,20 +29,23 @@ def list_contacts():
 def add_contact():
     form = ContactForm()
     if form.validate_on_submit():
-        contact = Contact(
-            name=form.name.data,
-            phone=form.phone.data,
-            email=form.email.data,
-            type=form.type.data
-        )
-        try:
-            db.session.add(contact)
-            db.session.commit()
-            flash('Contact added successfully!', 'success')
-            return redirect(url_for('list_contacts'))
-        except Exception as e:
-            db.session.rollback()
-            flash('Error adding contact. Phone number might be duplicate.', 'error')
+        if Contact.query.filter((Contact.phone == form.phone.data) | (Contact.email == form.email.data)).first():
+            flash('Contact with this phone number or email already exists.', 'error')
+        else:
+            contact = Contact(
+                name=form.name.data,
+                phone=form.phone.data,
+                email=form.email.data,
+                type=form.type.data
+            )
+            try:
+                db.session.add(contact)
+                db.session.commit()
+                flash('Contact added successfully!', 'success')
+                return redirect(url_for('list_contacts'))
+            except Exception as e:
+                db.session.rollback()
+                flash('Error adding contact.', 'error')
     return render_template('add_contact.html', form=form)
 
 @app.route('/update/<int:id>', methods=['GET', 'POST'])
@@ -51,20 +54,29 @@ def update_contact(id):
     form = ContactForm(obj=contact)
     
     if form.validate_on_submit():
-        contact.name = form.name.data
-        contact.phone = form.phone.data
-        contact.email = form.email.data
-        db.session.commit()
-        return redirect(url_for('list_contacts'))
+        if Contact.query.filter((Contact.phone == form.phone.data) | (Contact.email == form.email.data)).first():
+            flash('Contact with this phone number or email already exists.', 'error')
+        else:
+            contact.name = form.name.data
+            contact.phone = form.phone.data
+            contact.email = form.email.data
+            contact.type = form.type.data
+            try:
+                db.session.commit()
+                flash('Contact updated successfully!', 'success')
+                return redirect(url_for('list_contacts'))
+            except Exception as e:
+                db.session.rollback()
+                flash('Error updating contact.', 'error')
     
     return render_template('update_contact.html', form=form, contact=contact)
 
 @app.route('/delete/<int:id>')
 def delete_contact(id):
     contact = Contact.query.get(id)
-    # Bug: Not actually deleting the contact but returning success
-    # db.session.delete(contact)
-    db.session.commit()
+    if contact:
+        db.session.delete(contact)
+        db.session.commit()
     return redirect(url_for('list_contacts'))
 
 # API Routes
@@ -85,6 +97,9 @@ def create_contact():
     if not all(k in data for k in ('name', 'phone', 'type')):
         return jsonify({'error': 'Missing required fields'}), 400
         
+    if Contact.query.filter((Contact.phone == data['phone']) | (Contact.email == data['email'])).first():
+        return jsonify({'error': 'Contact with this phone number or email already exists.'}), 400
+    
     contact = Contact(**data)
     try:
         db.session.add(contact)
@@ -98,6 +113,9 @@ def create_contact():
 def update_contact_api(id):
     contact = Contact.query.get_or_404(id)
     data = request.get_json()
+    
+    if Contact.query.filter((Contact.phone == data['phone']) | (Contact.email == data['email'])).first():
+        return jsonify({'error': 'Contact with this phone number or email already exists.'}), 400
     
     for key, value in data.items():
         if hasattr(contact, key):
@@ -114,10 +132,9 @@ def update_contact_api(id):
 def delete_contact_api(id):
     contact = Contact.query.get(id)
     if contact:
-        # Bug: Same issue in API - not actually deleting
-        # db.session.delete(contact)
+        db.session.delete(contact)
         db.session.commit()
-    return '', 204  # Returns success even though nothing was deleted
+    return '', 204
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001) 
+    app.run(debug=True, port=5001)
