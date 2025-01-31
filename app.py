@@ -51,11 +51,20 @@ def update_contact(id):
     form = ContactForm(obj=contact)
     
     if form.validate_on_submit():
-        contact.name = form.name.data
-        contact.phone = form.phone.data
-        contact.email = form.email.data
-        db.session.commit()
-        return redirect(url_for('list_contacts'))
+        if Contact.query.filter((Contact.phone == form.phone.data) | (Contact.email == form.email.data)).first():
+            flash('Contact with this phone number or email already exists.', 'error')
+        else:
+            contact.name = form.name.data
+            contact.phone = form.phone.data
+            contact.email = form.email.data
+            contact.type = form.type.data
+            try:
+                db.session.commit()
+                flash('Contact updated successfully!', 'success')
+                return redirect(url_for('list_contacts'))
+            except Exception as e:
+                db.session.rollback()
+                flash('Error updating contact.', 'error')
     
     return render_template('update_contact.html', form=form, contact=contact)
 
