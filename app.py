@@ -55,6 +55,7 @@ def update_contact(id):
         contact.phone = form.phone.data
         contact.email = form.email.data
         db.session.commit()
+        flash('Contact updated successfully!', 'success')
         return redirect(url_for('list_contacts'))
     
     return render_template('update_contact.html', form=form, contact=contact)
@@ -62,9 +63,16 @@ def update_contact(id):
 @app.route('/delete/<int:id>')
 def delete_contact(id):
     contact = Contact.query.get(id)
-    # Bug: Not actually deleting the contact but returning success
-    # db.session.delete(contact)
-    db.session.commit()
+    if contact:
+        try:
+            db.session.delete(contact)
+            db.session.commit()
+            flash('Contact deleted successfully!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error deleting contact: {str(e)}', 'error')
+    else:
+        flash('Contact not found.', 'error')
     return redirect(url_for('list_contacts'))
 
 # API Routes
@@ -84,7 +92,10 @@ def create_contact():
     
     if not all(k in data for k in ('name', 'phone', 'type')):
         return jsonify({'error': 'Missing required fields'}), 400
-        
+
+    if not str(data['phone']).isdigit():
+        return jsonify({'error': 'Phone number must contain only digits.'}), 400
+
     contact = Contact(**data)
     try:
         db.session.add(contact)
@@ -99,6 +110,9 @@ def update_contact_api(id):
     contact = Contact.query.get_or_404(id)
     data = request.get_json()
     
+    if 'phone' in data and not str(data['phone']).isdigit():
+        return jsonify({'error': 'Phone number must contain only digits.'}), 400
+
     for key, value in data.items():
         if hasattr(contact, key):
             setattr(contact, key, value)
@@ -114,10 +128,14 @@ def update_contact_api(id):
 def delete_contact_api(id):
     contact = Contact.query.get(id)
     if contact:
-        # Bug: Same issue in API - not actually deleting
-        # db.session.delete(contact)
-        db.session.commit()
-    return '', 204  # Returns success even though nothing was deleted
+        try:
+            db.session.delete(contact)
+            db.session.commit()
+            return '', 204  # Success
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Error deleting contact: {str(e)}'}), 400
+    return jsonify({'error': 'Contact not found'}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001) 
+    app.run(debug=True, port=5001)
